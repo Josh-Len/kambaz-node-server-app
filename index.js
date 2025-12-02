@@ -4,7 +4,7 @@ import express from "express";
 import Lab5 from "./Lab5/index.js";
 import cors from "cors";
 import db from "./Database/index.js";
-import UserRoutes from "../kambaz-next-js/app/(Kambaz)/Users/routes.js";
+import UserRoutes from "./Users/routes.js";
 import CourseRoutes from "./Courses/routes.js";
 import ModulesRoutes from "./Modules/routes.js";
 import AssignmentsRoutes from "./Assignments/routes.js";
