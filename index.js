@@ -3,12 +3,12 @@ import session from "express-session";
 import express from "express";
 import Lab5 from "./Lab5/index.js";
 import cors from "cors";
-import db from "../kambaz-next-js/app/(Kambaz)/Database/index.js";
+import db from "./Database/index.js";
 import UserRoutes from "../kambaz-next-js/app/(Kambaz)/Users/routes.js";
-import CourseRoutes from "../kambaz-next-js/app/(Kambaz)/Courses/routes.js";
-import ModulesRoutes from "../kambaz-next-js/app/(Kambaz)/Courses/[cid]/Modules/routes.js";
-import AssignmentsRoutes from "../kambaz-next-js/app/(Kambaz)/Courses/[cid]/Assignments/routes.js";
-import EnrollmentsRoutes from "../kambaz-next-js/app/(Kambaz)/Enrollments/routes.js";
+import CourseRoutes from "./Courses/routes.js";
+import ModulesRoutes from "./Modules/routes.js";
+import AssignmentsRoutes from "./Assignments/routes.js";
+import EnrollmentsRoutes from "./Enrollments/routes.js";
 
 const app = express();
 
