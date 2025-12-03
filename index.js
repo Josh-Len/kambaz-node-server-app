@@ -1,6 +1,7 @@
 import "dotenv/config";
 import session from "express-session";
 import express from "express";
+import mongoose from "mongoose";
 import Lab5 from "./Lab5/index.js";
 import cors from "cors";
 import db from "./Database/index.js";
@@ -10,6 +11,8 @@ import ModulesRoutes from "./Modules/routes.js";
 import AssignmentsRoutes from "./Assignments/routes.js";
 import EnrollmentsRoutes from "./Enrollments/routes.js";
 
+const CONNECTION_STRING = process.env.DATABASE_CONNECTION_STRING || "mongodb://127.0.0.1:27017/kambaz"
+mongoose.connect(CONNECTION_STRING);
 const app = express();
 
 app.use(
