@@ -1,29 +1,32 @@
-import { v4 as uuidv4 } from "uuid";
+// Kanbas/Assignments/dao.js
+import AssignmentModel from "./model.js";
 
+// keep the db parameter for compatibility, but we don't use it anymore
 export default function AssignmentsDao(db) {
-  function findAssignmentsForCourse(courseId) {
-    const { assignments } = db;
-    return assignments.filter((assignment) => assignment.course === courseId);
+  async function findAssignmentsForCourse(courseId) {
+    return AssignmentModel.find({ course: courseId });
   }
 
-  function createAssignment(assignment) {
-    const newAssignment = { ...assignment, _id: uuidv4() };
-    db.assignments = [...db.assignments, newAssignment];
-    return newAssignment;
+  async function createAssignment(assignment) {
+    // assignment includes course, title, etc.
+    const created = await AssignmentModel.create(assignment);
+    return created;
   }
 
-  function deleteAssignment(assignmentId) {
-  const { assignments } = db;
-  db.assignments = assignments.filter((assignment) => assignment._id !== assignmentId);
-}
+  async function deleteAssignment(assignmentId) {
+    const result = await AssignmentModel.deleteOne({ _id: assignmentId });
+    // Express doesn't really use the return, but let's return the result anyway
+    return result;
+  }
 
-function updateAssignment(assignmentId, assignmentUpdates) {
-  const { assignments } = db;
-  const assignment = assignments.find((assignment) => assignment._id === assignmentId);
-  Object.assign(assignment, assignmentUpdates);
-  return assignment;
-}
-
+  async function updateAssignment(assignmentId, assignmentUpdates) {
+    const updated = await AssignmentModel.findByIdAndUpdate(
+      assignmentId,
+      { $set: assignmentUpdates },
+      { new: true } // return updated document
+    );
+    return updated;
+  }
 
   return {
     findAssignmentsForCourse,

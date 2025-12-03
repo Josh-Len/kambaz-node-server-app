@@ -31,6 +31,10 @@ async function updateModule(courseId, moduleId, moduleUpdates) {
    return module;
 }
 
+
+
+
+
  return {
    findModulesForCourse,
    createModule,
