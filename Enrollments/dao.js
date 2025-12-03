@@ -1,18 +1,43 @@
-import { v4 as uuidv4 } from "uuid";
+// Kambaz/Enrollments/dao.js
+import model from "./model.js";
+
 export default function EnrollmentsDao(db) {
-  function enrollUserInCourse(userId, courseId) {
-    const { enrollments } = db;
-    enrollments.push({ _id: uuidv4(), user: userId, course: courseId });
+  // Return all *course documents* a user is enrolled in
+  async function findCoursesForUser(userId) {
+    const enrollments = await model.find({ user: userId }).populate("course");
+    return enrollments.map((enrollment) => enrollment.course);
   }
 
-  function unenrollUserInCourse(userId, courseId) {
-    const { enrollments } = db;
-    const index = enrollments.findIndex(
-      (e) => e.user === userId && e.course === courseId
-    );
-    if (index !== -1) {
-      enrollments.splice(index, 1); // mutates db.enrollments
-    }
+  // Return all *user documents* enrolled in a course
+  async function findUsersForCourse(courseId) {
+    const enrollments = await model.find({ course: courseId }).populate("user");
+    return enrollments.map((enrollment) => enrollment.user);
   }
-  return { enrollUserInCourse, unenrollUserInCourse };
+
+  // Create an enrollment linking user + course
+  function enrollUserInCourse(userId, courseId) {
+    return model.create({
+      user: userId,
+      course: courseId,
+      _id: `${userId}-${courseId}`, // ensures one enrollment per user+course
+    });
+  }
+
+  // Remove one enrollment
+  function unenrollUserFromCourse(userId, courseId) {
+    return model.deleteOne({ user: userId, course: courseId });
+  }
+
+  // Remove all enrollments for a course (used when deleting a course)
+  function unenrollAllUsersFromCourse(courseId) {
+    return model.deleteMany({ course: courseId });
+  }
+
+  return {
+    findCoursesForUser,
+    findUsersForCourse,
+    enrollUserInCourse,
+    unenrollUserFromCourse,
+    unenrollAllUsersFromCourse,
+  };
 }
