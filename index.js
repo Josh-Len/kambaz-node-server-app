@@ -22,6 +22,28 @@ app.use(
   })
 );
 
+// Tab-specific session store
+const tabSessions = new Map(); // tabId -> { currentUser: ... }
+
+// Middleware to handle tab-specific sessions
+app.use((req, res, next) => {
+  const tabId = req.headers["x-tab-id"];
+  if (tabId) {
+    // Create or retrieve tab-specific session
+    if (!tabSessions.has(tabId)) {
+      tabSessions.set(tabId, { currentUser: null, lastAccess: Date.now() });
+    }
+    // Attach tab-specific session to request
+    req.tabSession = tabSessions.get(tabId);
+    // Update last access time
+    req.tabSession.lastAccess = Date.now();
+  } else {
+    // Fallback: use empty session if no tab ID
+    req.tabSession = { currentUser: null };
+  }
+  next();
+});
+
 const sessionOptions = {
   secret: process.env.SESSION_SECRET || "kambaz",
   resave: false,
@@ -49,5 +71,16 @@ ModulesRoutes(app,db);
 AssignmentsRoutes(app,db);
 EnrollmentsRoutes(app,db);
 Lab5(app);
+
+// Clean up old tab sessions periodically (every hour)
+setInterval(() => {
+  // Keep sessions for 24 hours of inactivity
+  const now = Date.now();
+  for (const [tabId, session] of tabSessions.entries()) {
+    if (session.lastAccess && now - session.lastAccess > 24 * 60 * 60 * 1000) {
+      tabSessions.delete(tabId);
+    }
+  }
+}, 60 * 60 * 1000);
 
 app.listen(4000);

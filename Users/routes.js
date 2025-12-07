@@ -35,11 +35,18 @@ const updateUser = async (req, res) => {
     const { userId } = req.params;
     const userUpdates = req.body;
     await dao.updateUser(userId, userUpdates);
-    const currentUser = req.session["currentUser"];
+    // Fetch the updated user from the database
+    const updatedUser = await dao.findUserById(userId);
+    const currentUser = req.tabSession?.currentUser || req.session["currentUser"];
    if (currentUser && currentUser._id === userId) {
-     req.session["currentUser"] = { ...currentUser, ...userUpdates };
+     if (req.tabSession) {
+       req.tabSession.currentUser = updatedUser;
+       req.tabSession.lastAccess = Date.now();
+     } else {
+       req.session["currentUser"] = updatedUser;
+     }
    }
-    res.json(currentUser);
+    res.json(updatedUser);
   };
 
   const signup = async (req, res) => {
@@ -49,7 +56,12 @@ const updateUser = async (req, res) => {
       return;
     }
     const currentUser = await dao.createUser(req.body);
-    req.session["currentUser"] = currentUser;
+    if (req.tabSession) {
+      req.tabSession.currentUser = currentUser;
+      req.tabSession.lastAccess = Date.now();
+    } else {
+      req.session["currentUser"] = currentUser;
+    }
     res.json(currentUser);
   };
 
@@ -57,25 +69,37 @@ const updateUser = async (req, res) => {
     const { username, password } = req.body;
     const currentUser = await dao.findUserByCredentials(username, password);
     if (currentUser) {
-      req.session["currentUser"] = currentUser;
-    res.json(currentUser);
+      if (req.tabSession) {
+        req.tabSession.currentUser = currentUser;
+        req.tabSession.lastAccess = Date.now();
+      } else {
+        req.session["currentUser"] = currentUser;
+      }
+      res.json(currentUser);
     } else {
       res.status(401).json({ message: "Unable to login. Try again later." });
     }
   };
 
   const profile = async (req, res) => {
-    const currentUser = req.session["currentUser"];
+    const currentUser = req.tabSession?.currentUser || req.session["currentUser"];
     if (!currentUser) {
       res.sendStatus(401);
       return;
     }
-
+    if (req.tabSession) {
+      req.tabSession.lastAccess = Date.now();
+    }
     res.json(currentUser);
   };
 
   const signout = (req, res) => {
-    req.session.destroy();
+    if (req.tabSession) {
+      req.tabSession.currentUser = null;
+      req.tabSession.lastAccess = Date.now();
+    } else {
+      req.session.destroy();
+    }
     res.sendStatus(200);
   };
 

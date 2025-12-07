@@ -19,7 +19,7 @@ export default function CourseRoutes(app, db) {
     let { userId } = req.params;
 
     if (userId === "current") {
-      const currentUser = req.session["currentUser"];
+      const currentUser = req.tabSession?.currentUser || req.session["currentUser"];
       if (!currentUser) {
         res.sendStatus(401);
         return;
@@ -35,7 +35,7 @@ export default function CourseRoutes(app, db) {
   const createCourse = async (req, res) => {
     try {
       const newCourse = await coursesDao.createCourse(req.body);
-      const currentUser = req.session["currentUser"];
+      const currentUser = req.tabSession?.currentUser || req.session["currentUser"];
       if (currentUser) {
         // Optional: auto-enroll creator in the new course
         await enrollmentsDao.enrollUserInCourse(currentUser._id, newCourse._id);
@@ -53,7 +53,7 @@ export default function CourseRoutes(app, db) {
       let { uid, cid } = req.params;
 
       if (uid === "current") {
-        const currentUser = req.session["currentUser"];
+        const currentUser = req.tabSession?.currentUser || req.session["currentUser"];
         if (!currentUser) {
           res.sendStatus(401);
           return;
@@ -80,7 +80,7 @@ export default function CourseRoutes(app, db) {
       let { uid, cid } = req.params;
 
       if (uid === "current") {
-        const currentUser = req.session["currentUser"];
+        const currentUser = req.tabSession?.currentUser || req.session["currentUser"];
         if (!currentUser) {
           res.sendStatus(401);
           return;

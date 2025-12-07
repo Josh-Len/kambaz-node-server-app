@@ -9,7 +9,7 @@ export default function EnrollmentsRoutes(app, db) {
       let { userId, courseId } = req.params;
 
       if (userId === "current") {
-        const currentUser = req.session["currentUser"];
+        const currentUser = req.tabSession?.currentUser || req.session["currentUser"];
         if (!currentUser) {
           res.sendStatus(401);
           return;
@@ -35,7 +35,7 @@ export default function EnrollmentsRoutes(app, db) {
       let { userId, courseId } = req.params;
 
       if (userId === "current") {
-        const currentUser = req.session["currentUser"];
+        const currentUser = req.tabSession?.currentUser || req.session["currentUser"];
         if (!currentUser) {
           res.sendStatus(401);
           return;
