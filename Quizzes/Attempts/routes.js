@@ -5,120 +5,153 @@ export default function QuizAttemptsRoutes(app) {
   const quizzesDao = QuizzesDao();
 
   const requireStudent = (req, res, next) => {
-    const user = req.session?.currentUser;
+    const user = req.tabSession?.currentUser || req.session?.currentUser;
     if (!user || user.role !== "STUDENT") {
-      return res.status(403).json({ message: "Only students can take quizzes" });
+      return res
+        .status(403)
+        .json({ message: "Only students can take quizzes" });
     }
     req.user = user;
     next();
   };
 
-  // GET: last attempt + attempts info
-  app.get("/api/quizzes/:qid/my-attempt", requireStudent, async (req, res) => {
-    const { qid } = req.params;
-    const user = req.user;
+  const getMyAttempt = async (req, res) => {
+    try {
+      const { qid } = req.params;
+      const user = req.user;
 
-    const quiz = await quizzesDao.findQuizById(qid);
-    if (!quiz) return res.sendStatus(404);
+      if (!user || !user._id) {
+        return res.status(400).json({ message: "User information missing" });
+      }
 
-    const lastAttempt = await QuizAttemptModel.findOne({
-      quizId: qid,
-      studentId: user._id,
-    }).sort({ attemptNumber: -1 });
+      const quiz = await quizzesDao.findQuizById(qid);
+      if (!quiz) return res.sendStatus(404);
 
-    const attemptsCount = await QuizAttemptModel.countDocuments({
-      quizId: qid,
-      studentId: user._id,
-    });
+      const quizIdStr = quiz._id?.toString() || qid;
+      const studentIdStr = user._id?.toString() || user._id;
 
-    const multipleAttempts = quiz.multipleAttempts;
-    const maxAttempts = quiz.maxAttempts || 1;
-    const allowedAttempts = multipleAttempts ? maxAttempts : 1;
+      const lastAttempt = await QuizAttemptModel.findOne({
+        quizId: quizIdStr,
+        studentId: studentIdStr,
+      }).sort({ attemptNumber: -1 });
 
-    res.json({
-      lastAttempt,
-      attemptsCount,
-      multipleAttempts,
-      maxAttempts: allowedAttempts,
-      remainingAttempts: Math.max(0, allowedAttempts - attemptsCount),
-    });
-  });
+      const attemptsCount = await QuizAttemptModel.countDocuments({
+        quizId: quizIdStr,
+        studentId: studentIdStr,
+      });
 
-  // POST: submit new attempt (grade + store)
-  app.post("/api/quizzes/:qid/attempts", requireStudent, async (req, res) => {
-    const { qid } = req.params;
-    const user = req.user;
-    const { answers = [] } = req.body;
+      const multipleAttempts = quiz.multipleAttempts;
+      const maxAttempts = quiz.maxAttempts || 1;
+      const allowedAttempts = multipleAttempts ? maxAttempts : 1;
 
-    const quiz = await quizzesDao.findQuizById(qid);
-    if (!quiz) return res.sendStatus(404);
-
-    const attemptsCount = await QuizAttemptModel.countDocuments({
-      quizId: qid,
-      studentId: user._id,
-    });
-
-    const multipleAttempts = quiz.multipleAttempts;
-    const maxAttempts = quiz.maxAttempts || 1;
-    const allowedAttempts = multipleAttempts ? maxAttempts : 1;
-
-    if (attemptsCount >= allowedAttempts) {
-      return res.status(403).json({ message: "No attempts remaining for this quiz" });
+      res.json({
+        lastAttempt,
+        attemptsCount,
+        multipleAttempts,
+        maxAttempts: allowedAttempts,
+        remainingAttempts: Math.max(0, allowedAttempts - attemptsCount),
+      });
+    } catch (error) {
+      console.error("Error in /api/quizzes/:qid/my-attempt:", error);
+      res
+        .status(500)
+        .json({ message: error.message || "Internal server error" });
     }
+  };
 
-    const questions = quiz.questions || [];
-    let score = 0;
-    const maxScore = questions.reduce(
-      (sum, q) => sum + (q.points || 0),
-      0
-    );
+  const submitAttempt = async (req, res) => {
+    try {
+      const { qid } = req.params;
+      const user = req.user;
+      const { answers = [] } = req.body;
 
-    const gradedAnswers = questions.map((q, index) => {
-      const ans = answers.find((a) => a.questionIndex === index) || {};
-      let isCorrect = false;
-
-      if (q.type === "MC") {
-        if (typeof ans.selectedChoiceIndex === "number") {
-          isCorrect = ans.selectedChoiceIndex === q.correctChoiceIndex;
-        }
-      } else if (q.type === "TF") {
-        if (typeof ans.selectedBoolean === "boolean") {
-          isCorrect = ans.selectedBoolean === q.correctBoolean;
-        }
-      } else if (q.type === "FIB") {
-        const userText = (ans.textAnswer || "").trim().toLowerCase();
-        if (userText && Array.isArray(q.acceptableAnswers)) {
-          isCorrect = q.acceptableAnswers.some(
-            (a) => a.trim().toLowerCase() === userText
-          );
-        }
+      if (!user || !user._id) {
+        return res.status(400).json({ message: "User information missing" });
       }
 
-      if (isCorrect) {
-        score += q.points || 0;
+      const quiz = await quizzesDao.findQuizById(qid);
+      if (!quiz) return res.sendStatus(404);
+
+      const quizIdStr = quiz._id?.toString() || qid;
+      const studentIdStr = user._id?.toString() || user._id;
+
+      const attemptsCount = await QuizAttemptModel.countDocuments({
+        quizId: quizIdStr,
+        studentId: studentIdStr,
+      });
+
+      const multipleAttempts = quiz.multipleAttempts;
+      const maxAttempts = quiz.maxAttempts || 1;
+      const allowedAttempts = multipleAttempts ? maxAttempts : 1;
+
+      if (attemptsCount >= allowedAttempts) {
+        return res
+          .status(403)
+          .json({ message: "No attempts remaining for this quiz" });
       }
 
-      return {
-        questionIndex: index,
-        selectedChoiceIndex: ans.selectedChoiceIndex,
-        selectedBoolean: ans.selectedBoolean,
-        textAnswer: ans.textAnswer,
-        isCorrect,
-      };
-    });
+      const questions = quiz.questions || [];
+      let score = 0;
+      const maxScore = questions.reduce(
+        (sum, q) => sum + (q.points || 0),
+        0
+      );
 
-    const attemptDoc = await QuizAttemptModel.create({
-      quizId: quiz._id,
-      studentId: user._id,
-      attemptNumber: attemptsCount + 1,
-      score,
-      maxScore,
-      answers: gradedAnswers,
-    });
+      const gradedAnswers = questions.map((q, index) => {
+        const ans = answers.find((a) => a.questionIndex === index) || {};
+        let isCorrect = false;
 
-    res.json({
-      attempt: attemptDoc,
-      remainingAttempts: allowedAttempts - (attemptsCount + 1),
-    });
-  });
+        if (q.type === "MC") {
+          if (typeof ans.selectedChoiceIndex === "number") {
+            isCorrect = ans.selectedChoiceIndex === q.correctChoiceIndex;
+          }
+        } else if (q.type === "TF") {
+          if (typeof ans.selectedBoolean === "boolean") {
+            isCorrect = ans.selectedBoolean === q.correctBoolean;
+          }
+        } else if (q.type === "FIB") {
+          const userText = (ans.textAnswer || "").trim().toLowerCase();
+          if (userText && Array.isArray(q.acceptableAnswers)) {
+            isCorrect = q.acceptableAnswers.some(
+              (a) => a.trim().toLowerCase() === userText
+            );
+          }
+        }
+
+        if (isCorrect) {
+          score += q.points || 0;
+        }
+
+        return {
+          questionIndex: index,
+          selectedChoiceIndex: ans.selectedChoiceIndex,
+          selectedBoolean: ans.selectedBoolean,
+          textAnswer: ans.textAnswer,
+          isCorrect,
+        };
+      });
+
+      const attemptDoc = await QuizAttemptModel.create({
+        quizId: quizIdStr,
+        studentId: studentIdStr,
+        attemptNumber: attemptsCount + 1,
+        score,
+        maxScore,
+        answers: gradedAnswers,
+      });
+
+      res.json({
+        attempt: attemptDoc,
+        remainingAttempts: allowedAttempts - (attemptsCount + 1),
+      });
+    } catch (error) {
+      console.error("Error in /api/quizzes/:qid/attempts:", error);
+      res
+        .status(500)
+        .json({ message: error.message || "Internal server error" });
+    }
+  };
+
+  app.get("/api/quizzes/:qid/my-attempt", requireStudent, getMyAttempt);
+  app.post("/api/quizzes/:qid/attempts", requireStudent, submitAttempt);
 }

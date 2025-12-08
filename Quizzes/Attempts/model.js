@@ -14,13 +14,11 @@ const quizAnswerSchema = new mongoose.Schema(
 const quizAttemptSchema = new mongoose.Schema(
   {
     quizId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "QuizModel",
+      type: String,
       required: true,
     },
     studentId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "UserModel",
+      type: String,
       required: true,
     },
     attemptNumber: { type: Number, required: true },
