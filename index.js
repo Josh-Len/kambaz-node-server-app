@@ -10,6 +10,8 @@ import CourseRoutes from "./Courses/routes.js";
 import ModulesRoutes from "./Modules/routes.js";
 import AssignmentsRoutes from "./Assignments/routes.js";
 import EnrollmentsRoutes from "./Enrollments/routes.js";
+import QuizzesRoutes from "./Quizzes/routes.js";
+import QuizAttemptsRoutes from "./Quizzes/Attempts/routes.js";
 
 const CONNECTION_STRING = process.env.DATABASE_CONNECTION_STRING || "mongodb://127.0.0.1:27017/kambaz"
 mongoose.connect(CONNECTION_STRING);
@@ -22,23 +24,17 @@ app.use(
   })
 );
 
-// Tab-specific session store
-const tabSessions = new Map(); // tabId -> { currentUser: ... }
+const tabSessions = new Map();
 
-// Middleware to handle tab-specific sessions
 app.use((req, res, next) => {
   const tabId = req.headers["x-tab-id"];
   if (tabId) {
-    // Create or retrieve tab-specific session
     if (!tabSessions.has(tabId)) {
       tabSessions.set(tabId, { currentUser: null, lastAccess: Date.now() });
     }
-    // Attach tab-specific session to request
     req.tabSession = tabSessions.get(tabId);
-    // Update last access time
     req.tabSession.lastAccess = Date.now();
   } else {
-    // Fallback: use empty session if no tab ID
     req.tabSession = { currentUser: null };
   }
   next();
@@ -70,11 +66,11 @@ CourseRoutes(app, db);
 ModulesRoutes(app,db);
 AssignmentsRoutes(app,db);
 EnrollmentsRoutes(app,db);
+QuizzesRoutes(app,db);
+QuizAttemptsRoutes(app,db);
 Lab5(app);
 
-// Clean up old tab sessions periodically (every hour)
 setInterval(() => {
-  // Keep sessions for 24 hours of inactivity
   const now = Date.now();
   for (const [tabId, session] of tabSessions.entries()) {
     if (session.lastAccess && now - session.lastAccess > 24 * 60 * 60 * 1000) {
